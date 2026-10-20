@@ -1,0 +1,22 @@
+  ── NOVASHOP DEVOPS STORE ─────────────────────── 2026-09-09 ──
+
+  FROM : NovaShop Engineering
+  RE   : From Code to Cloud
+
+  ───────────────────────────────────────────────────────────────
+
+  Welcome to NovaShop DevOps Store!
+
+  SYSTEM METRICS:
+    Microservices          5
+    Supported Profiles     compose, cicd, gitops, observability
+    Target Platform        Ubuntu, Kind & AWS Cloud
+    DevOps Pipeline        READY
+
+  BROWSER STOREFRONT:
+    To view the web application interface, open this URL in
+    your browser: http://localhost:8888
+
+  ───────────────────────────────────────────────────────────────
+  ── NOVASHOP PLATFORM TERMINAL ─────────────────────────────────
+

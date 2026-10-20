@@ -1,0 +1,134 @@
+# NovaShop — Gözlemlenebilirlik (Prometheus, Grafana, Jaeger, OTel) Yığını
+# Sistem Kaynak Bütçesi (PROFILES.md) Uyumlu
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: novashop-prometheus
+    ports:
+      - "19090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - ./alertmanager.yml:/etc/prometheus/alertmanager.yml:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+    networks:
+      - novashop-observability-net
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: novashop-alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    networks:
+      - novashop-observability-net
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: novashop-grafana
+    ports:
+      - "13000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set locally; do not commit it}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+    networks:
+      - novashop-observability-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    container_name: novashop-jaeger
+    ports:
+      - "16686:16686" # Web UI
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+    networks:
+      - novashop-observability-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: novashop-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4466:4318" # OTLP HTTP, host port from the approved training port list
+    deploy:
+      resources:
+        limits:
+          cpus: "0.30"
+          memory: 256M
+    networks:
+      - novashop-observability-net
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.0
+    container_name: novashop-node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/host/root'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 128M
+    networks:
+      - novashop-observability-net
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.50.0
+    container_name: novashop-cadvisor
+    restart: unless-stopped
+    command:
+      - -housekeeping_interval=10s
+      - -docker_only=true
+      - -disable_metrics=percpu,sched,tcp,udp,hugetlb,disk,process
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+    networks:
+      - novashop-observability-net
+
+networks:
+  novashop-observability-net:
+    driver: bridge

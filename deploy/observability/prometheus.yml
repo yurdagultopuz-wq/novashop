@@ -1,0 +1,81 @@
+# NovaShop — Prometheus Metrik Toplama Yapılandırması
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert.rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # 1. Prometheus Kendi Metrikleri
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # 2. NovaShop UI Spring Boot Actuator Metrikleri
+  - job_name: "novashop-ui"
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:30080"]
+        labels:
+          runtime: "kind-k8s"
+          service: "ui"
+
+  # 3. NovaShop Mikroservis Metrikleri (Catalog, Cart, Orders, Checkout)
+  - job_name: "novashop-catalog"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:30081"]
+        labels:
+          runtime: "kind-k8s"
+          service: "catalog"
+
+  - job_name: "novashop-cart"
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:30082"]
+        labels:
+          runtime: "kind-k8s"
+          service: "cart"
+
+  - job_name: "novashop-orders"
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:30083"]
+        labels:
+          runtime: "kind-k8s"
+          service: "orders"
+
+  - job_name: "novashop-checkout"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:30085"]
+        labels:
+          runtime: "kind-k8s"
+          service: "checkout"
+
+  # 4. OpenTelemetry Collector Metrik Çıkışı
+  - job_name: "otel-collector"
+    static_configs:
+      - targets: ["otel-collector:8889"]
+
+  # 5. Host & Konteyner İzleme (Docker Monitoring)
+  - job_name: "node-exporter"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: "cadvisor"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["cadvisor:8080"]

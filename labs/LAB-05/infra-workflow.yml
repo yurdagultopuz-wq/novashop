@@ -1,0 +1,160 @@
+name: 01 - AWS EC2 Altyapı Kurulumu (Infra Provisioning)
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_type:
+        description: 'EC2 Instance Tipi'
+        required: true
+        default: 't3.small'
+      region:
+        description: 'AWS Bölgesi'
+        required: true
+        default: 'us-east-1'
+
+permissions:
+  contents: read
+
+jobs:
+  provision-ec2:
+    name: Provision EC2 with Docker & Compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repoyu Klonla
+        uses: actions/checkout@v4
+
+      - name: AWS Kimlik Bilgilerini Yapılandır
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.region || vars.AWS_REGION || 'us-east-1' }}
+
+      - name: EC2 Güvenlik Grubu ve Anahtar Hazırla
+        id: prep
+        env:
+          AWS_REGION: ${{ github.event.inputs.region || vars.AWS_REGION || 'us-east-1' }}
+        run: |
+          echo "=== 1. Güvenlik Grubu Kontrolü (novashop-web-sg) ==="
+          VPC_ID=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text)
+          if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
+            VPC_ID=$(aws ec2 describe-vpcs --query "Vpcs[0].VpcId" --output text)
+          fi
+          echo "VPC ID: $VPC_ID"
+          echo "vpc_id=$VPC_ID" >> $GITHUB_OUTPUT
+
+          SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=novashop-web-sg" "Name=vpc-id,Values=$VPC_ID" --query "SecurityGroups[0].GroupId" --output text 2>/dev/null || true)
+          
+          if [ -z "$SG_ID" ] || [ "$SG_ID" = "None" ]; then
+            echo "Güvenlik grubu oluşturuluyor..."
+            SG_ID=$(aws ec2 create-security-group \
+              --group-name "novashop-web-sg" \
+              --description "NovaShop Web ve SSH Güvenlik Grubu" \
+              --vpc-id "$VPC_ID" \
+              --output text --query 'GroupId')
+            
+            # Port 22 (SSH), 80 (HTTP), 443 (HTTPS), 8888 (UI) izinleri
+            aws ec2 authorize-security-group-ingress --group-id "$SG_ID" --protocol tcp --port 22 --cidr 0.0.0.0/0
+            aws ec2 authorize-security-group-ingress --group-id "$SG_ID" --protocol tcp --port 80 --cidr 0.0.0.0/0
+            aws ec2 authorize-security-group-ingress --group-id "$SG_ID" --protocol tcp --port 443 --cidr 0.0.0.0/0
+            aws ec2 authorize-security-group-ingress --group-id "$SG_ID" --protocol tcp --port 8888 --cidr 0.0.0.0/0
+          fi
+          echo "Security Group ID: $SG_ID"
+          echo "sg_id=$SG_ID" >> $GITHUB_OUTPUT
+
+          echo "=== 2. SSH Anahtar Çifti Kontrolü (novashop-key) ==="
+          KEY_EXISTS=$(aws ec2 describe-key-pairs --key-names "novashop-key" --query "KeyPairs[0].KeyName" --output text 2>/dev/null || true)
+          if [ "$KEY_EXISTS" != "novashop-key" ]; then
+            echo "Yeni SSH Key Pair oluşturuluyor..."
+            aws ec2 create-key-pair --key-name "novashop-key" --query "KeyMaterial" --output text > novashop-key.pem
+            chmod 400 novashop-key.pem
+            echo "HAS_NEW_KEY=true" >> $GITHUB_ENV
+          else
+            echo "novashop-key zaten mevcut."
+            echo "HAS_NEW_KEY=false" >> $GITHUB_ENV
+          fi
+
+      - name: En Güncel Ubuntu 22.04 AMI ID'sini Bul
+        id: ami
+        run: |
+          AMI_ID=$(aws ec2 describe-images \
+            --owners 099720109477 \
+            --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" "Name=state,Values=available" \
+            --query "sort_by(Images, &CreationDate)[-1].ImageId" --output text)
+          echo "Ubuntu AMI: $AMI_ID"
+          echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+
+      - name: EC2 Sunucusunu Başlat (Docker & Docker Compose user_data ile)
+        id: ec2
+        env:
+          SG_ID: ${{ steps.prep.outputs.sg_id }}
+          AMI_ID: ${{ steps.ami.outputs.ami_id }}
+          INSTANCE_TYPE: ${{ github.event.inputs.instance_type || 't3.small' }}
+        run: |
+          echo "=== EC2 Instance Başlatılıyor ==="
+          
+          # user-data script oluştur
+          cat << 'USERDATA' > user_data.sh
+          #!/bin/bash
+          set -e
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -y
+          apt-get install -y ca-certificates curl gnupg git
+
+          # Docker resmi reposu ve kurulumu
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          chmod a+r /etc/apt/keyrings/docker.gpg
+          echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+
+          apt-get update -y
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          usermod -aG docker ubuntu
+
+          # NovaShop deploy dizini hazırlığı
+          mkdir -p /home/ubuntu/novashop-deploy
+          chown -R ubuntu:ubuntu /home/ubuntu/novashop-deploy
+          echo "Docker ve Docker Compose kurulumu tamamlandı." > /home/ubuntu/setup.log
+          USERDATA
+
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id "$AMI_ID" \
+            --instance-type "$INSTANCE_TYPE" \
+            --key-name "novashop-key" \
+            --security-group-ids "$SG_ID" \
+            --user-data file://user_data.sh \
+            --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":20,"VolumeType":"gp3"}}]' \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=novashop-docker-host},{Key=Project,Value=NovaShop}]' \
+            --query "Instances[0].InstanceId" --output text)
+
+          echo "Instance ID: $INSTANCE_ID"
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+
+          echo "Instance running durumuna geçmesi bekleniyor..."
+          aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+
+          PUBLIC_IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
+          echo "Public IP: $PUBLIC_IP"
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+
+      - name: Yeni SSH Anahtarını Artifact Olarak Kaydet (Varsa)
+        if: env.HAS_NEW_KEY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: novashop-ec2-private-key
+          path: novashop-key.pem
+
+      - name: Dağıtım Özeti ve Talimatlar
+        run: |
+          echo "### 🎉 EC2 Sunucusu Başarıyla Kuruldu!" >> $GITHUB_STEP_SUMMARY
+          echo "- **Instance ID:** \`${{ steps.ec2.outputs.instance_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Public IP:** \`${{ steps.ec2.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Kurulan Bileşenler:** Docker Engine, Docker Compose Plugin, Git, curl" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### ⚠️ Sonraki Adım:" >> $GITHUB_STEP_SUMMARY
+          echo "GitHub reponuzun **Settings > Secrets and variables > Actions > Variables** bölümünde \`EC2_HOST\` değişkenini güncelleyin:" >> $GITHUB_STEP_SUMMARY
+          echo "- **EC2_HOST:** \`${{ steps.ec2.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ env.HAS_NEW_KEY }}" = "true" ]; then
+            echo "- **EC2_SSH_KEY (Secret):** Üretilen yeni anahtar artifact olarak indirilebilir. İçeriğini \`EC2_SSH_KEY\` secret'ına kopyalayınız." >> $GITHUB_STEP_SUMMARY
+          fi

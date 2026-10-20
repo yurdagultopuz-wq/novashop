@@ -1,0 +1,41 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "novashop.fullname" . }}-ui
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "novashop.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ui
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: {{ .Values.serviceMonitor.interval | default "15s" }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout | default "10s" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "novashop.fullname" . }}-catalog
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "novashop.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: catalog
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval | default "15s" }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout | default "10s" }}
+{{- end }}

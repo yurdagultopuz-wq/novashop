@@ -1,0 +1,62 @@
+# NovaShop — Merkezi Günlükleme (Fluent Bit, Elasticsearch, Kibana) Yığını
+# Sistem Kaynak Bütçesi (PROFILES.md) Uyumlu
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: novashop-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1536M
+    networks:
+      - novashop-logging-net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: novashop-kibana
+    ports:
+      - "5601:5601"
+      - "15601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 1024M
+    networks:
+      - novashop-logging-net
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.0.0
+    container_name: novashop-fluent-bit
+    user: "0:0"
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          cpus: "0.30"
+          memory: 256M
+    networks:
+      - novashop-logging-net
+
+networks:
+  novashop-logging-net:
+    driver: bridge

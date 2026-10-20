@@ -1,0 +1,14 @@
+apiVersion: v2
+name: novashop
+description: NovaShop DevOps Store — Kurumsal Mikroservis Kubernetes ve Helm Paketi
+type: application
+version: 0.1.0
+appVersion: "v0.1.0"
+keywords:
+  - novashop
+  - ecommerce
+  - devops
+  - microservices
+maintainers:
+  - name: DevOps Atolyesi
+    email: egitim@devopsatolyesi.com

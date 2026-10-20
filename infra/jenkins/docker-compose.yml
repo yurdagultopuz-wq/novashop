@@ -1,0 +1,16 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    restart: always
+    user: root # Docker socket erişimi ve araç yükleme için
+    ports:
+      - "18080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock # Docker-in-Docker / Host Docker erişimi
+      - /usr/bin/docker:/usr/bin/docker:ro
+
+volumes:
+  jenkins_home:

@@ -1,0 +1,77 @@
+# ==============================================================================
+# NovaShop — Prometheus Alertmanager Konfigürasyonu
+# Çok Kanallı Bildirim: E-posta (Gmail), Slack Webhook ve Telegram Bot
+# ==============================================================================
+
+global:
+  resolve_timeout: 5m
+  # E-posta Bildirimi İçin SMTP Yapılandırması (Gmail Örneği)
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'devopsatolyesi@gmail.com'
+  smtp_auth_username: 'devopsatolyesi@gmail.com'
+  # Google Hesabı > Güvenlik > 2 Adımlı Doğrulama > Uygulama Şifreleri (App Password)
+  smtp_auth_password: 'CHANGE_ME_GMAIL_APP_PASSWORD'
+  smtp_require_tls: true
+
+# ==============================================================================
+# Yönlendirme Ağacı (Routing Tree)
+# ==============================================================================
+route:
+  group_by: ['alertname', 'job', 'severity']
+  group_wait: 30s
+  group_interval: 2m
+  repeat_interval: 4h
+  receiver: 'devops-multi-channel'
+  routes:
+    # 1. Kritik Alarmlar (Email + Slack + Telegram Tüm Kanallara Acil İletim)
+    - match:
+        severity: critical
+      receiver: 'devops-multi-channel'
+      continue: true
+
+    # 2. Uyarı Seviyesi Alarmlar (Slack ve Telegram Kanallarına İletim)
+    - match:
+        severity: warning
+      receiver: 'devops-chat-channels'
+
+# ==============================================================================
+# Alıcı Kanalları (Receivers)
+# ==============================================================================
+receivers:
+  # A. Birleşik Bildirim Kanalı (Email + Slack + Telegram)
+  - name: 'devops-multi-channel'
+    email_configs:
+      - to: 'devopsatolyesi@gmail.com'
+        send_resolved: true
+        headers:
+          subject: '🚨 [NovaShop Alert] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity | toUpper }})'
+    slack_configs:
+      - api_url: 'http://localhost:9093/slack-webhook-placeholder'
+        channel: '#novashop-alerts'
+        send_resolved: true
+        title: '🚨 [{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} - {{ .CommonLabels.severity }}'
+        text: >-
+          *Özet:* {{ .CommonAnnotations.summary }}
+          *Açıklama:* {{ .CommonAnnotations.description }}
+          *Servis:* {{ .CommonLabels.job }}
+    telegram_configs:
+      - bot_token: '123456789:ABCdefGHIjklMNOpqrSTUvwxYZ'
+        chat_id: -1001234567890
+        send_resolved: true
+        parse_mode: 'HTML'
+        message: '<b>🚨 NovaShop Alarm: {{ .CommonLabels.alertname }}</b>&#10;<b>Seviye:</b> {{ .CommonLabels.severity }}&#10;<b>Durum:</b> {{ .Status }}&#10;<b>Özet:</b> {{ .CommonAnnotations.summary }}&#10;<i>{{ .CommonAnnotations.description }}</i>'
+
+  # B. Sohbet Kanalları (Yalnızca Slack ve Telegram)
+  - name: 'devops-chat-channels'
+    slack_configs:
+      - api_url: 'http://localhost:9093/slack-webhook-placeholder'
+        channel: '#novashop-alerts'
+        send_resolved: true
+    telegram_configs:
+      - bot_token: '123456789:ABCdefGHIjklMNOpqrSTUvwxYZ'
+        chat_id: -1001234567890
+        send_resolved: true
+        parse_mode: 'HTML'
+
+  # C. Sessiz / Test Kanalı
+  - name: 'local-lab'

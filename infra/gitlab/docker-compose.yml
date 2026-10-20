@@ -1,0 +1,30 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab-ce
+    restart: always
+    hostname: 'gitlab.novashop.local'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        # Port 80 ve 443 Nginx'e bırakıldığı için dahili 80 dinlenir, host 8929'a eşlenir
+        external_url 'http://localhost:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2224
+        # RAM tasarrufu için Puma ve Sidekiq optimize edildi (2-3 GB RAM tasarrufu)
+        puma['worker_processes'] = 2
+        puma['min_threads'] = 1
+        puma['max_threads'] = 4
+        sidekiq['concurrency'] = 5
+        prometheus_monitoring['enable'] = false
+    ports:
+      - "8929:8929"
+      - "2224:22"
+    volumes:
+      - gitlab_config:/etc/gitlab
+      - gitlab_logs:/var/log/gitlab
+      - gitlab_data:/var/opt/gitlab
+    shm_size: '256m'
+
+volumes:
+  gitlab_config:
+  gitlab_logs:
+  gitlab_data:

@@ -1,0 +1,41 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: DevOps-Email
+    receivers:
+      - uid: cp-email-devops
+        type: email
+        settings:
+          addresses: devopsatolyesi@gmail.com
+          singleEmail: true
+
+  - orgId: 1
+    name: DevOps-Slack
+    receivers:
+      - uid: cp-slack-devops
+        type: slack
+        settings:
+          url: http://localhost:3000/slack-webhook-placeholder
+          recipient: '#novashop-alerts'
+
+  - orgId: 1
+    name: DevOps-Telegram
+    receivers:
+      - uid: cp-telegram-devops
+        type: telegram
+        settings:
+          bottoken: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ
+          chatid: "-1001234567890"
+
+policies:
+  - orgId: 1
+    receiver: DevOps-Email
+    group_by: ['grafana_folder', 'alertname']
+    routes:
+      - receiver: DevOps-Email
+        object_matchers:
+          - ['severity', '=', 'critical']
+      - receiver: DevOps-Slack
+        object_matchers:
+          - ['severity', '=', 'warning']

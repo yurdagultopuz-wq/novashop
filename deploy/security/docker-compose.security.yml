@@ -1,0 +1,29 @@
+# NovaShop — DevSecOps ve SonarQube Compose Dağıtımı
+# Sistem Kaynak Bütçesi (PROFILES.md) Uyumlu
+services:
+  sonarqube:
+    image: sonarqube:community
+    container_name: novashop-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+      - SONAR_SEARCH_JAVAADDITIONALOPTS=-Dnode.store.allow_mmap=false -Xms256m -Xmx512m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2048M
+        reservations:
+          cpus: "0.50"
+          memory: 1024M
+    networks:
+      - novashop-security-net
+
+networks:
+  novashop-security-net:
+    driver: bridge

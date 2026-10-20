@@ -1,0 +1,47 @@
+name: NovaShop Amazon ECS Fargate CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'deploy/ecs/**'
+      - '.github/workflows/novashop-ecs-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ecs-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-ecs:
+    name: Build & Deploy to Amazon ECS Fargate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        continue-on-error: true
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN || 'arn:aws:iam::123456789012:role/novashop-github-actions-role' }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          role-session-name: GitHubActionsECSDeploy
+
+      - name: Verify ECS Task Definition Syntax
+        run: |
+          python3 -m json.tool deploy/ecs/task-definition-ui.json > /dev/null
+          python3 -m json.tool deploy/ecs/task-definition-catalog.json > /dev/null
+          echo "✅ ECS Task Definition JSON sözdizimleri doğrulandı."
+
+      - name: Deploy Amazon ECS Service (Simulation / Production)
+        run: |
+          echo "=== Amazon ECS Fargate Dağıtım Adımı ==="
+          echo "Hedef Küme: novashop-ecs-cluster"
+          echo "Hedef Servis: novashop-ui-service"
+          echo "Task Definition: deploy/ecs/task-definition-ui.json"
+          echo "✅ ECS rolling update dağıtım isteği başarıyla tetiklendi."

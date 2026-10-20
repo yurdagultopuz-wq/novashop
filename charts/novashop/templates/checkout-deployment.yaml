@@ -1,0 +1,60 @@
+{{- if .Values.checkout.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "novashop.fullname" . }}-checkout
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: checkout
+spec:
+  replicas: {{ .Values.checkout.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "novashop.name" . }}-checkout
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "novashop.name" . }}-checkout
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: checkout
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: {{ .Values.checkout.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.checkout.securityContext.runAsUser }}
+      containers:
+        - name: checkout
+          image: "{{ .Values.checkout.image.repository }}:{{ .Values.checkout.image.tag }}"
+          imagePullPolicy: {{ .Values.checkout.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: RETAIL_CHECKOUT_PERSISTENCE_PROVIDER
+              value: "in-memory"
+            - name: RETAIL_CHECKOUT_ENDPOINTS_ORDERS
+              value: "http://novashop-orders:8080"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          resources:
+            {{- toYaml .Values.checkout.resources | nindent 12 }}
+{{- end }}

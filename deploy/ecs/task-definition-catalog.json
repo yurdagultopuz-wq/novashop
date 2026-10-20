@@ -1,0 +1,47 @@
+{
+  "family": "novashop-catalog",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/novashop-ecs-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "catalog",
+      "image": "public.ecr.aws/aws-containers/retail-store-sample-catalog:1.6.2",
+      "essential": true,
+      "user": "appuser",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DB_ENDPOINT",
+          "value": "novashop-catalog-db.cxxxx.us-east-1.rds.amazonaws.com:3306"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "catalogdb"
+        },
+        {
+          "name": "DB_USER",
+          "value": "novashop"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/novashop-catalog",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "catalog"
+        }
+      }
+    }
+  ]
+}

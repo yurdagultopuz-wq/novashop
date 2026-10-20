@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "novashop.fullname" . }}-config
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.global.environment | quote }}
+  DOMAIN: {{ .Values.global.domain | quote }}
+  CATALOG_ENDPOINT: {{ default (printf "http://%s-catalog:8080" (include "novashop.fullname" .)) .Values.ui.env.ENDPOINTS_CATALOG | quote }}

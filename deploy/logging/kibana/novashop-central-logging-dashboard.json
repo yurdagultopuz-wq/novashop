@@ -1,0 +1,47 @@
+{
+  "attributes": {
+    "title": "NovaShop — Merkezi Log ve Sistem Analiz Panosu",
+    "description": "Docker, Kubernetes, Ubuntu ve Mikroservis Loglarının Merkezi İzleme Panosu",
+    "kibanaSavedObjectMeta": {
+      "searchSourceJSON": "{\"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filter\": []}"
+    },
+    "optionsJSON": "{\"useMargins\": true, \"syncColors\": false, \"syncCursor\": true, \"syncTooltips\": false, \"hidePanelTitles\": false}",
+    "panelsJSON": "[{\"version\": \"8.9.0\", \"type\": \"lens\", \"gridData\": {\"x\": 0, \"y\": 0, \"w\": 6, \"h\": 5, \"i\": \"panel_total_logs\"}, \"panelIndex\": \"panel_total_logs\", \"embeddableConfig\": {\"attributes\": {\"title\": \"Toplam Log Say\\u0131s\\u0131\", \"visualizationType\": \"lnsMetric\", \"state\": {\"datasourceStates\": {\"formBased\": {\"layers\": {\"layer_1\": {\"columnOrder\": [\"col_1\"], \"columns\": {\"col_1\": {\"dataType\": \"number\", \"isBucketed\": false, \"label\": \"Toplam Log\", \"operationType\": \"count\", \"scale\": \"ratio\"}}, \"incompleteColumns\": {}}}}}, \"visualization\": {\"layerId\": \"layer_1\", \"accessor\": \"col_1\"}, \"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filters\": []}, \"references\": [{\"id\": \"novashop-all\", \"name\": \"indexpattern-datasource-current-indexpattern\", \"type\": \"index-pattern\"}, {\"id\": \"novashop-all\", \"name\": \"indexpattern-datasource-layer-layer_1\", \"type\": \"index-pattern\"}]}}, \"title\": \"Toplam Log Say\\u0131s\\u0131\"}, {\"version\": \"8.9.0\", \"type\": \"lens\", \"gridData\": {\"x\": 6, \"y\": 0, \"w\": 6, \"h\": 5, \"i\": \"panel_error_logs\"}, \"panelIndex\": \"panel_error_logs\", \"embeddableConfig\": {\"attributes\": {\"title\": \"Hata Loglar\\u0131 (ERROR)\", \"visualizationType\": \"lnsMetric\", \"state\": {\"datasourceStates\": {\"formBased\": {\"layers\": {\"layer_1\": {\"columnOrder\": [\"col_1\"], \"columns\": {\"col_1\": {\"dataType\": \"number\", \"isBucketed\": false, \"label\": \"Hata Loglar\\u0131\", \"operationType\": \"count\", \"scale\": \"ratio\"}}, \"incompleteColumns\": {}}}}}, \"visualization\": {\"layerId\": \"layer_1\", \"accessor\": \"col_1\"}, \"query\": {\"language\": \"kuery\", \"query\": \"level: \\\"ERROR\\\" or http_status >= 500\"}, \"filters\": []}, \"references\": [{\"id\": \"novashop-all\", \"name\": \"indexpattern-datasource-current-indexpattern\", \"type\": \"index-pattern\"}, {\"id\": \"novashop-all\", \"name\": \"indexpattern-datasource-layer-layer_1\", \"type\": \"index-pattern\"}]}}, \"title\": \"Hata Loglar\\u0131 (ERROR)\"}, {\"version\": \"8.9.0\", \"type\": \"lens\", \"gridData\": {\"x\": 12, \"y\": 0, \"w\": 12, \"h\": 8, \"i\": \"panel_source_pie\"}, \"panelIndex\": \"panel_source_pie\", \"embeddableConfig\": {\"attributes\": {\"title\": \"Log Kaynaklar\\u0131 Da\\u011f\\u0131l\\u0131m\\u0131 (log_source)\", \"visualizationType\": \"lnsPie\", \"state\": {\"datasourceStates\": {\"formBased\": {\"layers\": {\"layer_1\": {\"columnOrder\": [\"col_group\", \"col_metric\"], \"columns\": {\"col_group\": {\"dataType\": \"string\", \"isBucketed\": true, \"label\": \"Kaynak\", \"operationType\": \"terms\", \"sourceField\": \"log_source.keyword\", \"params\": {\"size\": 5, \"orderBy\": {\"type\": \"column\", \"columnId\": \"col_metric\"}, \"orderDirection\": \"desc\"}, \"scale\": \"ordinal\"}, \"col_metric\": {\"dataType\": \"number\", \"isBucketed\": false, \"label\": \"Kay\\u0131t Say\\u0131s\\u0131\", \"operationType\": \"count\", \"scale\": \"ratio\"}}, \"incompleteColumns\": {}}}}}, \"visualization\": {\"shape\": \"donut\", \"layers\": [{\"layerId\": \"layer_1\", \"groups\": [\"col_group\"], \"metric\": \"col_metric\"}]}, \"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filters\": []}, \"references\": [{\"id\": \"novashop-all\", \"name\": \"indexpattern-datasource-current-indexpattern\", \"type\": \"index-pattern\"}, {\"id\": \"novashop-all\", \"name\": \"indexpattern-datasource-layer-layer_1\", \"type\": \"index-pattern\"}]}}, \"title\": \"Log Kaynaklar\\u0131 Da\\u011f\\u0131l\\u0131m\\u0131\"}]",
+    "timeRestore": true,
+    "timeFrom": "now-24h",
+    "timeTo": "now",
+    "version": 1
+  },
+  "references": [
+    {
+      "id": "novashop-all",
+      "name": "panel_total_logs:indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "novashop-all",
+      "name": "panel_total_logs:indexpattern-datasource-layer-layer_1",
+      "type": "index-pattern"
+    },
+    {
+      "id": "novashop-all",
+      "name": "panel_error_logs:indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "novashop-all",
+      "name": "panel_error_logs:indexpattern-datasource-layer-layer_1",
+      "type": "index-pattern"
+    },
+    {
+      "id": "novashop-all",
+      "name": "panel_source_pie:indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "novashop-all",
+      "name": "panel_source_pie:indexpattern-datasource-layer-layer_1",
+      "type": "index-pattern"
+    }
+  ]
+}

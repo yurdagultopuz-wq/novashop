@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: novashop-project
+  namespace: argocd
+spec:
+  description: "NovaShop DevOps Store Production and Lab Environments"
+  sourceRepos:
+    - "https://github.com/devopsatolyesi-labs/novashop.git"
+    - "https://github.com/*"
+  destinations:
+    - namespace: "novashop"
+      server: "https://kubernetes.default.svc"
+    - namespace: "novashop-prod"
+      server: "https://kubernetes.default.svc"
+  clusterResourceWhitelist:
+    - group: ""
+      kind: "Namespace"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

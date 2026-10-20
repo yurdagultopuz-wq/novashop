@@ -1,0 +1,54 @@
+.DS_Store
+*.tfvars
+.terraform
+*.tfstate*
+*.lock.hcl
+*.log
+.vscode
+reports
+env
+oss-output
+kubeconfig_*
+.idea
+node_modules
+dist
+.venv
+
+ort-build
+
+Chart.lock
+**/charts/*.tgz
+
+.nx/cache
+.nx/workspace-data
+
+screenshots
+
+.env
+.direnv
+
+.pre-commit-config.yaml
+
+# mise
+.mise.lock
+.mise.local.toml
+
+# yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Internal docs & troubleshooting (private)
+docs/
+troubleshoot/
+troubleshot
+scripts/instructor/
+.github/workflows/cloudflare-dns.yml
+
+# AI & Agent internal files
+.agents/
+.codex/
+AGENTS.md

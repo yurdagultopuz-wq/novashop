@@ -1,0 +1,11 @@
+# NovaShop UI Starter Security Overlay. Use with src/ui/docker-compose.yml.
+# Keeps the UI's in-memory mock mode while applying runtime hardening.
+services:
+  ui:
+    cpus: "0.50"
+    pids_limit: 128
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m

@@ -1,0 +1,31 @@
+# NovaShop 3-Tier Security Overlay.
+# Applies strict runtime hardening, resource limits, and network isolation.
+services:
+  ui:
+    cpus: "0.50"
+    pids_limit: 128
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      - ENDPOINTS_CATALOG=http://catalog:8080
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0
+    networks:
+      - novashop-tier-net
+
+  catalog:
+    cpus: "0.30"
+    pids_limit: 64
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    networks:
+      - novashop-tier-net
+
+networks:
+  novashop-tier-net:
+    driver: bridge

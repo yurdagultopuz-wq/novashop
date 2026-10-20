@@ -1,0 +1,56 @@
+# ==============================================================================
+# NovaShop — Filebeat Log Toplayıcı Yapılandırması (ELK Stack Entegrasyonu)
+# Kapsam: Docker Konteynerleri, Ubuntu Syslog/Auth, ve Mikroservis JSON Logları
+# ==============================================================================
+
+filebeat.inputs:
+  # 1. Docker Konteyner Logları (Ubuntu üzerindeki tüm konteynerler)
+  - type: container
+    paths:
+      - '/var/lib/docker/containers/*/*-json.log'
+    processors:
+      - add_docker_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: "json"
+          overwrite_keys: false
+    fields:
+      log_source: docker_container
+    fields_under_root: true
+
+  # 2. Ubuntu Sistem Günlükleri (Syslog)
+  - type: filestream
+    id: ubuntu-syslog
+    paths:
+      - /var/log/syslog
+    fields:
+      log_source: ubuntu_system
+    fields_under_root: true
+
+  # 3. Ubuntu Güvenlik ve Giriş Günlükleri (Auth Log)
+  - type: filestream
+    id: ubuntu-auth
+    paths:
+      - /var/log/auth.log
+    fields:
+      log_source: ubuntu_auth
+    fields_under_root: true
+
+# ------------------------------------------------------------------------------
+# Çıkış: Elasticsearch 8.x
+# ------------------------------------------------------------------------------
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "novashop-filebeat-%{+yyyy.MM.dd}"
+
+# Dinamik İndeksleme için varsayılan şablonu özelleştir
+setup.template.name: "novashop-filebeat"
+setup.template.pattern: "novashop-filebeat-*"
+setup.template.enabled: true
+setup.ilm.enabled: false
+
+# ------------------------------------------------------------------------------
+# Kibana Entegrasyonu
+# ------------------------------------------------------------------------------
+setup.kibana:
+  host: "http://kibana:5601"

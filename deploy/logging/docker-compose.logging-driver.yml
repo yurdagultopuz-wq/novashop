@@ -1,0 +1,52 @@
+# NovaShop — Docker Compose Fluentd Logging Driver Overlay
+# Uygulama mikroservislerinin stdout/stderr loglarını Fluent Bit forward portuna (24224) aktarır.
+# Kullanım:
+#   docker compose -f src/app/docker-compose.yml -f deploy/logging/docker-compose.logging-driver.yml up -d
+services:
+  ui:
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async: "true"
+        tag: "novashop.ui"
+
+  catalog:
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async: "true"
+        tag: "novashop.catalog"
+
+  cart:
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async: "true"
+        tag: "novashop.cart"
+
+  checkout:
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async: "true"
+        tag: "novashop.checkout"
+
+  orders:
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async: "true"
+        tag: "novashop.orders"
+
+  jenkins:
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async: "true"
+        tag: "jenkins.cicd"

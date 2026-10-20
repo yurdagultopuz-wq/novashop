@@ -1,0 +1,25 @@
+# NovaShop — Amazon EKS Küme Yapılandırması (eksctl)
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: novashop-eks
+  region: us-east-1
+  version: "1.29"
+
+iam:
+  withOIDC: true # IRSA (IAM Roles for Service Accounts) desteğini otomatik açar
+
+managedNodeGroups:
+  - name: novashop-workers
+    instanceType: t3.medium
+    desiredCapacity: 2
+    minSize: 1
+    maxSize: 3
+    volumeSize: 20
+    privateNetworking: true
+    labels:
+      tier: standard-workers
+    tags:
+      Project: NovaShop
+      Environment: Production

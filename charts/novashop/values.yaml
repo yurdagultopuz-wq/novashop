@@ -1,0 +1,203 @@
+# NovaShop DevOps Store — Helm Values Yapılandırması
+# Tüm Mikroservisler Dahil: UI, Catalog, Cart, Orders, Checkout
+# Sistem Kaynak Bütçesi (PROFILES.md) ve In-Memory Çalışma Modu Uyumlu
+
+global:
+  environment: local-kind
+  domain: novashop.local
+
+# 1. UI Storefront Mikroservisi (Spring Boot / Java 21)
+ui:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-ui
+    tag: "1.6.2"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+    nodePort: 30080
+  resources:
+    limits:
+      cpu: 500m
+      memory: 384Mi
+    requests:
+      cpu: 150m
+      memory: 192Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  # Java uygulamasının ilk açılışı yoğun eğitim makinelerinde 30 saniyeyi aşabilir.
+  # Startup probe başarılı olana kadar liveness probe konteyneri yeniden başlatmaz.
+  startupProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 30
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: 8080
+    initialDelaySeconds: 20
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2
+  env:
+    ENDPOINTS_CATALOG: "http://novashop-catalog:8080"
+    ENDPOINTS_CARTS: "http://novashop-cart:8080"
+    ENDPOINTS_ORDERS: "http://novashop-orders:8080"
+    ENDPOINTS_CHECKOUT: "http://novashop-checkout:8080"
+    JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+
+# 2. Catalog Mikroservisi (Go Gin)
+catalog:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-catalog
+    tag: "1.6.2"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+    nodePort: 30081
+  resources:
+    limits:
+      cpu: 250m
+      memory: 192Mi
+    requests:
+      cpu: 50m
+      memory: 96Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+
+# 3. Cart Mikroservisi (Spring Boot / Java 21)
+cart:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-cart
+    tag: "1.6.2"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+    nodePort: 30082
+  resources:
+    limits:
+      cpu: 350m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+
+# 4. Orders Mikroservisi (Spring Boot / Java 21)
+orders:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-orders
+    tag: "1.6.2"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+    nodePort: 30083
+  resources:
+    limits:
+      cpu: 350m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+
+# 5. Checkout Mikroservisi (Node.js Express)
+checkout:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-checkout
+    tag: "1.6.2"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 8080
+    nodePort: 30085
+  resources:
+    limits:
+      cpu: 250m
+      memory: 192Mi
+    requests:
+      cpu: 50m
+      memory: 96Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+
+# Ingress Yapılandırması
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: novashop.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: novashop-ui
+            port: 8080
+
+# Prometheus Operator ServiceMonitor Yapılandırması
+serviceMonitor:
+  enabled: false
+  interval: 15s
+  scrapeTimeout: 10s
+  additionalLabels:
+    release: prometheus

@@ -1,0 +1,53 @@
+# NovaShop Full-Stack Security Overlay.
+# Use only via scripts/compose-full.sh after setting DB_PASSWORD in the local .env file.
+services:
+  catalog:
+    cpus: "0.50"
+    mem_limit: 384m
+    environment:
+      RETAIL_CATALOG_SEARCH_ENABLED: "false"
+      RETAIL_CATALOG_SEARCH_OS_TLS_SKIP_VERIFY: "false"
+  ui:
+    cpus: "0.50"
+    pids_limit: 128
+    read_only: true
+    environment:
+      RETAIL_UI_CHAT_ENABLED: "false"
+      RETAIL_UI_SEARCH_ENABLED: "false"
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+  catalog-db:
+    image: mariadb:10.9@sha256:56710811b0b96233ef84f4982d3337d88d3aa46a68f3fcb2853b94e1d04ea25c
+    cpus: "0.50"
+    mem_limit: 384m
+  carts-db:
+    image: amazon/dynamodb-local:1.20.0@sha256:1ed00881c937310f68f1e556b016af4f3bde711673ced3fbee355941b4c92151
+    cpus: "0.25"
+    mem_limit: 256m
+  checkout-redis:
+    image: redis:6.0-alpine@sha256:2b35fc7d2908e25aa6aa197f97882c8a67829d3b106ad5ea5c8028f816f26aa8
+    cpus: "0.25"
+    mem_limit: 128m
+  orders-db:
+    image: postgres:16.1@sha256:09f23e02d76670d3b346a3c00aa33a27cf57aab8341eedfcdaed41459d14f5c4
+    cpus: "0.50"
+    mem_limit: 384m
+  rabbitmq:
+    image: rabbitmq:3-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
+    cpus: "0.50"
+    mem_limit: 384m
+  opensearch:
+    image: opensearchproject/opensearch:3.5.0@sha256:dbb01641baadae5104e18acd888bf05e8fdd9af3567fd30624a76ba3e5a31dec
+    cpus: "0.50"
+    mem_limit: 768m
+  cart:
+    cpus: "0.50"
+    mem_limit: 384m
+  checkout:
+    cpus: "0.50"
+    mem_limit: 256m
+  orders:
+    cpus: "0.50"
+    mem_limit: 384m

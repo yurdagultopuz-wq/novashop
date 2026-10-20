@@ -1,0 +1,35 @@
+# NovaShop — Kurumsal CI/CD Compose Altyapısı
+# Sistem Kaynak Bütçesi (PROFILES.md) Uyumlu: Hafif Jenkins Dağıtımı
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: novashop-jenkins
+    user: root
+    ports:
+      - "8081:8080"
+      - "18080:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xms512m -Xmx1024m
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1536M
+        reservations:
+          cpus: "0.50"
+          memory: 512M
+    networks:
+      - novashop-cicd-net
+
+networks:
+  novashop-cicd-net:
+    driver: bridge
+
+volumes:
+  jenkins_home:
+    driver: local

@@ -1,0 +1,22 @@
+{{- if .Values.orders.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "novashop.fullname" . }}-orders
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: orders
+spec:
+  type: {{ .Values.orders.service.type }}
+  ports:
+    - port: {{ .Values.orders.service.port }}
+      targetPort: {{ .Values.orders.service.targetPort }}
+      protocol: TCP
+      name: http
+      {{- if and (eq .Values.orders.service.type "NodePort") .Values.orders.service.nodePort }}
+      nodePort: {{ .Values.orders.service.nodePort }}
+      {{- end }}
+  selector:
+    app.kubernetes.io/name: {{ include "novashop.name" . }}-orders
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

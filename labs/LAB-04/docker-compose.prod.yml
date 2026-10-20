@@ -1,0 +1,64 @@
+networks:
+  novashop-tier-net:
+    driver: bridge
+
+services:
+  catalog:
+    image: ${CATALOG_IMAGE:-public.ecr.aws/aws-containers/retail-store-sample-catalog:1.6.2}
+    container_name: novashop-catalog-prod
+    restart: unless-stopped
+    networks:
+      - novashop-tier-net
+    environment:
+      - RETAIL_CATALOG_PERSISTENCE_PROVIDER=mysql
+      - RETAIL_CATALOG_PERSISTENCE_ENDPOINT=${DB_ENDPOINT:-${RDS_ENDPOINT}:3306}
+      - RETAIL_CATALOG_PERSISTENCE_USER=${DB_USER:-novashop}
+      - RETAIL_CATALOG_PERSISTENCE_PASSWORD=${DB_PASSWORD}
+      - RETAIL_CATALOG_PERSISTENCE_DB_NAME=${DB_NAME:-catalogdb}
+      - DB_ENDPOINT=${DB_ENDPOINT:-${RDS_ENDPOINT}:3306}
+      - DB_USER=${DB_USER:-novashop}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-catalogdb}
+      - PORT=8080
+    deploy:
+      resources:
+        limits:
+          cpus: '0.40'
+          memory: 384M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  ui:
+    image: ${UI_IMAGE:-public.ecr.aws/aws-containers/retail-store-sample-ui:1.6.2}
+    container_name: novashop-ui-prod
+    restart: unless-stopped
+    depends_on:
+      catalog:
+        condition: service_healthy
+    networks:
+      - novashop-tier-net
+    ports:
+      - "127.0.0.1:${UI_PORT:-8888}:8080"
+    environment:
+      - ENDPOINTS_CATALOG=http://catalog:8080
+      - RETAIL_UI_ENDPOINTS_CATALOG=http://catalog:8080
+      - JAVA_OPTS=-Xms128m -Xmx384m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:8080/actuator/health | grep -q 'UP' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

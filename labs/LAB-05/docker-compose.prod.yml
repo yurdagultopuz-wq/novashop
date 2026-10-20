@@ -1,0 +1,55 @@
+networks:
+  novashop-net:
+    driver: bridge
+
+services:
+  catalog:
+    image: public.ecr.aws/aws-containers/retail-store-sample-catalog:1.6.2
+    container_name: novashop-catalog
+    restart: unless-stopped
+    networks:
+      - novashop-net
+    environment:
+      - PORT=8080
+    deploy:
+      resources:
+        limits:
+          cpus: '0.40'
+          memory: 384M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  ui:
+    image: ${UI_IMAGE:-novashop-ui:latest}
+    container_name: novashop-ui
+    restart: unless-stopped
+    depends_on:
+      catalog:
+        condition: service_healthy
+    networks:
+      - novashop-net
+    ports:
+      - "8888:8080"
+    environment:
+      - ENDPOINTS_CATALOG=http://catalog:8080
+      - RETAIL_UI_ENDPOINTS_CATALOG=http://catalog:8080
+      - JAVA_OPTS=-Xms128m -Xmx384m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:8080/actuator/health | grep -q 'UP' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

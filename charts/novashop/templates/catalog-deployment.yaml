@@ -1,0 +1,39 @@
+{{- if .Values.catalog.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "novashop.fullname" . }}-catalog
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: catalog
+spec:
+  replicas: {{ .Values.catalog.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "novashop.name" . }}-catalog
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "novashop.name" . }}-catalog
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: catalog
+    spec:
+      securityContext:
+        runAsNonRoot: {{ .Values.catalog.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.catalog.securityContext.runAsUser }}
+      containers:
+        - name: catalog
+          image: "{{ .Values.catalog.image.repository }}:{{ .Values.catalog.image.tag }}"
+          imagePullPolicy: {{ .Values.catalog.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.catalog.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.catalog.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.catalog.resources | nindent 12 }}
+{{- end }}

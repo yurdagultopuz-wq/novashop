@@ -1,0 +1,22 @@
+{{- if .Values.checkout.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "novashop.fullname" . }}-checkout
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: checkout
+spec:
+  type: {{ .Values.checkout.service.type }}
+  ports:
+    - port: {{ .Values.checkout.service.port }}
+      targetPort: {{ .Values.checkout.service.targetPort }}
+      protocol: TCP
+      name: http
+      {{- if and (eq .Values.checkout.service.type "NodePort") .Values.checkout.service.nodePort }}
+      nodePort: {{ .Values.checkout.service.nodePort }}
+      {{- end }}
+  selector:
+    app.kubernetes.io/name: {{ include "novashop.name" . }}-checkout
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

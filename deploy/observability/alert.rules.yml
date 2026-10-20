@@ -1,0 +1,115 @@
+# NovaShop — Prometheus Alarm Kuralları (Alert Rules, SLO & Infrastructure)
+groups:
+  # ==============================================================================
+  # 1. NovaShop Servis Seviyesi Alarmları (SLO / Golden Signals)
+  # ==============================================================================
+  - name: novashop_slo_alerts
+    rules:
+      # Servis Bazlı HTTP 5xx Hata Yüzdesi Alarmı (SLO: %2 Hata Bütçesi İhlali)
+      - alert: HighHttpErrorRate
+        expr: (sum by (job) (rate(http_server_requests_seconds_count{status=~"5.."}[1m])) / sum by (job) (rate(http_server_requests_seconds_count[1m]))) * 100 > 2
+        for: 30s
+        labels:
+          severity: critical
+          team: devops
+        annotations:
+          summary: "NovaShop {{ $labels.job }} HTTP 5xx hata oranı SLO eşiğini (%2) aştı"
+          description: "Son 1 dakikada {{ $labels.job }} HTTP 5xx hata oranı %{{ $value | printf \"%.2f\" }} seviyesinde; %2 SLO hata bütçesi ihlal edildi."
+
+      # Servis Bazlı Yanıt Gecikmesi Alarmı (SLO: p95 Latency > 500ms)
+      - alert: HighResponseLatency
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_server_requests_seconds_bucket[1m]))) > 0.5
+        for: 30s
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "NovaShop {{ $labels.job }} p95 gecikme süresi 500ms eşiğini aştı"
+          description: "{{ $labels.job }} servisinde son 1 dakikada p95 istek süresi {{ $value | printf \"%.3f\" }}s oldu."
+
+      # Servis Kesintisi Alarmı (Availability SLO)
+      - alert: NovaShopServiceDown
+        expr: up{job=~"novashop-.*"} == 0
+        for: 1m
+        labels:
+          severity: blocker
+          team: devops
+        annotations:
+          summary: "NovaShop servisi erişilemiyor: {{ $labels.job }}"
+          description: "Prometheus 1 dakikadır {{ $labels.job }} metrik endpoint'ine ulaşamıyor."
+
+  # ==============================================================================
+  # 2. Docker Konteyner Kaynak Alarmları (cAdvisor)
+  # ==============================================================================
+  - name: container_resource_alerts
+    rules:
+      # Konteyner Yüksek CPU Kullanımı (> %85)
+      - alert: ContainerHighCpuUsage
+        expr: (sum by (name) (rate(container_cpu_usage_seconds_total{name=~".+"}[1m])) * 100) > 85
+        for: 1m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "Konteyner CPU kullanımı yüksek: {{ $labels.name }}"
+          description: "{{ $labels.name }} konteyneri 1 dakikadır %{{ $value | printf \"%.1f\" }} CPU tüketiyor."
+
+      # Konteyner Yüksek Bellek Kullanımı (> %85 limit veya working_set)
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_working_set_bytes{name=~".+"} / container_spec_memory_limit_bytes{name=~".+"} * 100) > 85
+        for: 2m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "Konteyner bellek limiti tükenmek üzere: {{ $labels.name }}"
+          description: "{{ $labels.name }} konteyneri tahsis edilen bellek limitinin %{{ $value | printf \"%.1f\" }} kısmını doldurdu."
+
+  # ==============================================================================
+  # 3. Sunucu / Altyapı Alarmları (Node Exporter)
+  # ==============================================================================
+  - name: host_infrastructure_alerts
+    rules:
+      # Host Yüksek CPU Yükü (> %85)
+      - alert: HostHighCpuUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 85
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Sunucu CPU kullanımı %85 eşiğini aştı"
+          description: "Sunucu genelinde CPU kullanımı 2 dakikadır %{{ $value | printf \"%.1f\" }} seviyesinde seyrediyor."
+
+      # Host Düşük Kullanılabilir Bellek (< %15)
+      - alert: HostMemoryPressure
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) < 15
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Sunucu RAM darboğazında (Kullanılabilir bellek < %15)"
+          description: "Sunucudaki boş/kullanılabilir bellek oranı kritik seviyeye düştü: %{{ $value | printf \"%.1f\" }}."
+
+      # Host Disk Alanı Doluyor (< %15 boş alan)
+      - alert: HostDiskFillingUp
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100) < 15
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Kök dosya sistemi (/) dolmak üzere (< %15 boş)"
+          description: "Kök dizindeki boş alan son 5 dakikadır %{{ $value | printf \"%.1f\" }} seviyesinin altında."
+
+      # Altyapı Scrape Hedefi Erişilemez
+      - alert: InfrastructureTargetDown
+        expr: up{job=~"cadvisor|node-exporter|alertmanager"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "İzleme bileşeni kapalı: {{ $labels.job }}"
+          description: "Prometheus {{ $labels.job }} hedefine 1 dakikadır erişemiyor."

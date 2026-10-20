@@ -1,0 +1,172 @@
+name: 02 - NovaShop CI/CD Pipeline (Docker Hub & EC2 Deploy)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/ui/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build, Test & Push to Docker Hub
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+      image_uri: ${{ steps.meta.outputs.image_uri }}
+
+    steps:
+      - name: Repoyu Klonla
+        uses: actions/checkout@v4
+
+      - name: Java 21 Kurulumu
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Birim Testleri Çalıştır
+        run: |
+          cd src/ui
+          chmod +x mvnw
+          ./mvnw test -B -q
+
+      - name: Docker Hub Girişi
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: İmaj Etiketi Belirleme
+        id: meta
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          IMAGE_URI="${{ secrets.DOCKERHUB_USERNAME }}/novashop-ui:${SHORT_SHA}"
+          echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+
+      - name: Docker Buildx Kurulumu
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker İmajını Derle ve Docker Hub'a Gönder
+        uses: docker/build-push-action@v5
+        with:
+          context: src/ui
+          push: true
+          tags: ${{ steps.meta.outputs.image_uri }}
+
+  deploy-to-ec2:
+    name: Deploy to EC2 with Docker Compose
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH ile EC2'ye Dağıtım Yap
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_URI: ${{ needs.build-and-push.outputs.image_uri }}
+        with:
+          host: ${{ vars.EC2_HOST }}
+          username: ${{ vars.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_URI
+          script: |
+            set -e
+            echo "=== EC2 Üzerinde Dağıtım Başlatılıyor: $IMAGE_URI ==="
+            mkdir -p ~/novashop-deploy
+            cd ~/novashop-deploy
+
+            # docker-compose.prod.yml dosyasını hazırla
+            cat << 'EOF' > docker-compose.prod.yml
+            version: '3.8'
+
+            networks:
+              novashop-net:
+                driver: bridge
+
+            services:
+              catalog:
+                image: public.ecr.aws/aws-containers/retail-store-sample-catalog:1.6.2
+                container_name: novashop-catalog
+                restart: unless-stopped
+                networks:
+                  - novashop-net
+                environment:
+                  - PORT=8080
+                deploy:
+                  resources:
+                    limits:
+                      cpus: '0.40'
+                      memory: 384M
+                healthcheck:
+                  test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 3
+
+              ui:
+                image: IMAGE_PLACEHOLDER
+                container_name: novashop-ui
+                restart: unless-stopped
+                depends_on:
+                  catalog:
+                    condition: service_healthy
+                networks:
+                  - novashop-net
+                ports:
+                  - "8888:8080"
+                environment:
+                  - ENDPOINTS_CATALOG=http://catalog:8080
+                  - RETAIL_UI_ENDPOINTS_CATALOG=http://catalog:8080
+                  - JAVA_OPTS=-Xms128m -Xmx384m
+                deploy:
+                  resources:
+                    limits:
+                      cpus: '0.60'
+                      memory: 512M
+                healthcheck:
+                  test: ["CMD-SHELL", "curl -s -f http://localhost:8080/actuator/health | grep -q 'UP' || exit 1"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 3
+                  start_period: 20s
+            EOF
+
+            sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_URI}|g" docker-compose.prod.yml
+
+            echo "Yeni imaj çekiliyor: $IMAGE_URI"
+            docker pull "$IMAGE_URI"
+
+            echo "Konteynerler başlatılıyor..."
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "Sağlık kontrolü yapılıyor..."
+            SUCCESS=0
+            for i in {1..15}; do
+              if curl -s -f http://127.0.0.1:8888/actuator/health | grep -q '"status":"UP"'; then
+                echo "✅ UI Servisi Sağlıklı ($i/15)!"
+                SUCCESS=1
+                break
+              fi
+              echo "Servis bekleniyor ($i/15)..."
+              sleep 4
+            done
+
+            if [ "$SUCCESS" -ne 1 ]; then
+              echo "❌ HATA: Sağlık kontrolü başarısız oldu!"
+              docker compose -f docker-compose.prod.yml ps
+              docker logs novashop-ui --tail 30
+              exit 1
+            fi
+            echo "✅ Dağıtım Başarıyla Tamamlandı!"
+
+      - name: Dış Canlı Doğrulama (Smoke Test)
+        run: |
+          echo "Dış sağlık kontrolü test ediliyor: http://${{ vars.EC2_HOST }}:8888/actuator/health"
+          curl -s -f --retry 5 --retry-delay 3 http://${{ vars.EC2_HOST }}:8888/actuator/health || exit 1
+          echo "🎉 Canlı sistem başarıyla doğrulandı!"

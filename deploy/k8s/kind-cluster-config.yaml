@@ -1,0 +1,50 @@
+# NovaShop — Kind Çok Düğümlü Yerel Kubernetes Küme Yapılandırması
+# Sistem Kaynak Bütçesi (PROFILES.md) Uyumlu: 1 Control-Plane, 2 Worker
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: novashop-cluster
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # NodePort doğrudan erişimleri (UI, Catalog, Cart, Orders, Checkout)
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+      - containerPort: 30081
+        hostPort: 30081
+        protocol: TCP
+      - containerPort: 30082
+        hostPort: 30082
+        protocol: TCP
+      - containerPort: 30083
+        hostPort: 30083
+        protocol: TCP
+      - containerPort: 30085
+        hostPort: 30085
+        protocol: TCP
+
+  - role: worker
+    labels:
+      tier: presentation
+      node.kubernetes.io/instance-type: worker-1
+    extraMounts:
+      - hostPath: /var/log/containers
+        containerPath: /var/log/containers
+      - hostPath: /var/log/pods
+        containerPath: /var/log/pods
+
+  - role: worker
+    labels:
+      tier: application
+      node.kubernetes.io/instance-type: worker-2
+    extraMounts:
+      - hostPath: /var/log/containers
+        containerPath: /var/log/containers
+      - hostPath: /var/log/pods
+        containerPath: /var/log/pods

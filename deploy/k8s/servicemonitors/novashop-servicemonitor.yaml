@@ -1,0 +1,90 @@
+# NovaShop — Prometheus Operator ServiceMonitor Tanımları
+# NovaShop mikroservislerinin gerçek /metrics ve /actuator/prometheus endpoint'lerini izler.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: novashop-ui-servicemonitor
+  labels:
+    app.kubernetes.io/name: novashop-ui
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: ui
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 10s
+      scrapeTimeout: 5s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: novashop-catalog-servicemonitor
+  labels:
+    app.kubernetes.io/name: novashop-catalog
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: catalog
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 10s
+      scrapeTimeout: 5s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: novashop-cart-servicemonitor
+  labels:
+    app.kubernetes.io/name: novashop-cart
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: cart
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 10s
+      scrapeTimeout: 5s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: novashop-checkout-servicemonitor
+  labels:
+    app.kubernetes.io/name: novashop-checkout
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: checkout
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 10s
+      scrapeTimeout: 5s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: novashop-orders-servicemonitor
+  labels:
+    app.kubernetes.io/name: novashop-orders
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: orders
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 10s
+      scrapeTimeout: 5s

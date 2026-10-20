@@ -1,0 +1,24 @@
+{{- if and .Values.ui.autoscaling .Values.ui.autoscaling.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "novashop.fullname" . }}-ui-hpa
+  labels:
+    {{- include "novashop.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "novashop.fullname" . }}-ui
+  minReplicas: {{ .Values.ui.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ .Values.ui.autoscaling.maxReplicas | default 4 }}
+  metrics:
+    {{- if .Values.ui.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.ui.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+{{- end }}
